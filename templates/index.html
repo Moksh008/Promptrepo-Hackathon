@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Churn Rate Application</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+    />
+    <style>
+      
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Poppins", sans-serif;
+        background: #000;
+        color: #fff;
+        
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      
+      #webgl-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -2;
+      }
+
+      
+      .content-wrapper {
+        
+        width: 100%;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 15px;
+        margin: 2rem auto;
+        width: 90%;
+        max-width: 600px;
+        text-align: center;
+      }
+
+      form {
+        margin-top: 1rem;
+      }
+
+      #result {
+        margin-top: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    
+    <canvas id="webgl-canvas"></canvas>
+
+    
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark w-100">
+      <a class="navbar-brand" href="#">ChurnQI</a>
+    </nav>
+
+    
+    <div class="content-wrapper">
+      
+      <div class="container">
+        <h1 class="mt-5">Churn Rate Application</h1>
+        <p>Upload your dataset (CSV or Excel) to analyze customer churn:</p>
+        <form id="uploadForm" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="file-upload">Choose file:</label>
+            <input
+              type="file"
+              name="file"
+              id="file-upload"
+              class="form-control"
+              accept=".csv, .xlsx"
+              required
+            />
+          </div>
+          <button type="submit" class="btn btn-primary">Upload and Process</button>
+        </form>
+        <div id="result"></div>
+      </div>
+    </div>
+
+    
+    <script type="module">
+      document.addEventListener("DOMContentLoaded", () => {
+       
+        import(
+          "https://cdn.jsdelivr.net/npm/threejs-components@0.0.17/build/backgrounds/grid2.cdn.min.js"
+        )
+          .then((module) => {
+            const Grid2Background = module.default;
+            
+            const bg = Grid2Background(document.getElementById("webgl-canvas"));
+
+            
+            document.body.addEventListener("click", () => {
+              bg.grid.setColors([
+                Math.floor(0xffffff * Math.random()),
+                Math.floor(0xffffff * Math.random()),
+                Math.floor(0xffffff * Math.random()),
+              ]);
+              bg.grid.light1.color.set(Math.floor(0xffffff * Math.random()));
+              bg.grid.light1.intensity = 500 + Math.random() * 1000;
+              bg.grid.light2.color.set(Math.floor(0xffffff * Math.random()));
+              bg.grid.light2.intensity = 250 + Math.random() * 250;
+              
+            });
+          })
+          .catch((error) => {
+            console.error("Failed to load Grid2Background module:", error);
+          });
+
+        
+        const form = document.getElementById("uploadForm");
+        const resultDiv = document.getElementById("result");
+
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const fileInput = document.getElementById("file-upload");
+
+          if (fileInput.files.length === 0) {
+            resultDiv.innerHTML = `<p class="text-danger">Please select a file.</p>`;
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append("file", fileInput.files[0]);
+
+          try {
+            const response = await fetch("/upload", {
+              method: "POST",
+              body: formData,
+            });
+            const data = await response.json();
+            if (data.error) {
+              resultDiv.innerHTML = `<p class="text-danger">Error: ${data.error}</p>`;
+            } else {
+              resultDiv.innerHTML = `
+                <h2>Predicted Churn Rate: ${data.churn_rate}</h2>
+                <h3>Number of Users Likely to Churn: ${data.churn_users_count}</h3>
+                <h3>Users Likely to Churn (Customer IDs):</h3>
+                <p>${data.churn_user_ids.join(", ")}</p>
+                <p>${data.message}</p>
+              `;
+            }
+          } catch (error) {
+            resultDiv.innerHTML = `<p class="text-danger">An error occurred: ${error.message}</p>`;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
